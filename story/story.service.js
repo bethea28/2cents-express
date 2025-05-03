@@ -1,15 +1,18 @@
 // story.service.js
 const Story = require("./story.model");
+const { Op } = require("sequelize");
 
 class StoryService {
-  async createStory(storyData, sideAAuthorId) {
+  async createStory(storyData) {
     try {
       const {
         title,
         sideAContent,
         sideBContent,
+        sideAAuthorId,
+        sideBAuthorId,
         storyType = "one-sided",
-        sideBAuthorId: dataSideBAuthorId,
+        // sideBAuthorId: dataSideBAuthorId,
       } = storyData;
       console.log("INSDIE CREATE STOREY SIDE A", storyData);
       // return;
@@ -37,9 +40,10 @@ class StoryService {
         slug,
         storyType,
         sideAContent,
-        sideAAuthorId,
         sideBContent: sideBContent || null,
-        sideBAuthorId: dataSideBAuthorId || null,
+        sideAAuthorId,
+        sideBAuthorId: sideBAuthorId || null,
+        // sideBAuthorId: dataSideBAuthorId || null,
         status:
           storyType === "one-sided"
             ? "complete"
@@ -58,6 +62,25 @@ class StoryService {
   async getAllStories(storyData, sideAAuthorId) {
     try {
       const newStory = await Story.findAll({ where: { status: "complete" } });
+      console.log("GET ALL STORIES onesided stores", newStory);
+      return newStory; // Return the created story data
+    } catch (error) {
+      console.error("Error in StoryService.createStory:", error);
+      throw error;
+    }
+  }
+  async getAllPendingStories(req, res) {
+    const userId = req.params.userId;
+    console.log("DOWN TO THE ROOT USERID", req.params);
+    try {
+      const newStory = await Story.findAll({
+        where: {
+          sideAAuthorId: userId,
+          status: {
+            [Op.not]: "complete",
+          },
+        },
+      });
       console.log("GET ALL STORIES onesided stores", newStory);
       return newStory; // Return the created story data
     } catch (error) {

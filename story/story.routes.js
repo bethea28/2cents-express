@@ -5,4 +5,9 @@ const authenticateToken = require("../middleware/authMiddleware");
 
 router.post("/createStory", authenticateToken, storyController.createStory);
 router.get("/getAllStories", authenticateToken, storyController.getAllStories);
+router.get(
+  "/:userId/getAllPendingStories",
+  authenticateToken,
+  storyController.getAllPendingStories
+);
 module.exports = router;
