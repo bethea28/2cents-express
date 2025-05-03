@@ -17,11 +17,11 @@ class StoryService {
         throw new Error("Title and content for Side A are required.");
       }
 
-      if (storyType === "two-sided" && !sideBContent) {
-        throw new Error(
-          "Content for Side B is required for a two-sided story."
-        );
-      }
+      // if (storyType === "two-sided" && !sideBContent) {
+      //   throw new Error(
+      //     "Content for Side B is required for a two-sided story."
+      //   );
+      // }
 
       const slug = title
         .toLowerCase()
@@ -57,8 +57,8 @@ class StoryService {
 
   async getAllStories(storyData, sideAAuthorId) {
     try {
-      const newStory = await Story.findAll();
-      console.log("GET ALL STORIES", newStory);
+      const newStory = await Story.findAll({ where: { status: "complete" } });
+      console.log("GET ALL STORIES onesided stores", newStory);
       return newStory; // Return the created story data
     } catch (error) {
       console.error("Error in StoryService.createStory:", error);
