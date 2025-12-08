@@ -13,7 +13,7 @@ app.use((req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("Hello World! bryan");
 });
 app.use("/auth", authRoutes);
 app.use("/stories", storyRoutes);
