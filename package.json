@@ -4,7 +4,7 @@
   "description": "2cents-express",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "nodemon server.js --watch",
     "start": "node server.js"
   },
   "author": "javaninja",

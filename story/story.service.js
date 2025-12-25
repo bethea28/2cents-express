@@ -1,6 +1,8 @@
 
 const Story = require("./story.model");
+const User = require('../user/user.model');
 const { Op } = require("sequelize");
+
 
 class StoryService {
   async createStory(storyData, sideAAuthorId) {
@@ -9,33 +11,71 @@ class StoryService {
         title,
         wager,
         sideAContent,
-        sideBAuthorId, // The ID of the person being called out
+        opponentHandle, // The @handle from the frontend
         sideAVideoUrl,
         storyType = "call-out",
       } = storyData;
-
+      console.log('all story data', storyData)
+      // return
       // 1. Basic Validation
       if (!sideAVideoUrl) {
         throw new Error("A video rant is required to start a conflict.");
       }
 
-      // If no title, generate a default one based on the wager
+      // 2. Opponent Lookup (Linking @username to sideBAuthorId)
+      let sideBAuthorId = null;
+      if (opponentHandle) {
+        // Remove '@' and whitespace
+        const cleanUsername = opponentHandle.replace('@', '').trim();
+
+        // Search the 'username' column (matching your User model)
+        const opponent = await User.findOne({
+          where: { username: cleanUsername }
+        });
+
+        if (opponent) {
+          sideBAuthorId = opponent.id;
+        } else {
+          // Log it, but don't necessarily crash unless you want to require the user exists
+          console.log(`⚠️ User "${cleanUsername}" not found. Story created as unlinked.`);
+        }
+      }
+
+      // Inside StoryService.js
+      if (opponentHandle) {
+        const cleanUsername = opponentHandle.replace('@', '').trim();
+        const opponent = await User.findOne({ where: { username: cleanUsername } });
+
+        if (opponent) {
+          sideBAuthorId = opponent.id;
+        } else {
+          // THROW AN ERROR instead of just logging it
+          throw new Error(`User "@${cleanUsername}" does not exist. Please check the spelling.`);
+        }
+      }
+
+      // 3. Title & Slug Logic
+      // Fallback if title is empty
       const finalTitle = title || `Beef over ${wager || 'nothing'}`;
 
-      // 2. Slug Generation (Unique drama link)
-      const slug = `${finalTitle.toLowerCase().replace(/ /g, "-")}-${Date.now()}`;
+      // Generate URL-safe slug: "My Lunch?!" -> "my-lunch-1735161600"
+      const slug = `${finalTitle
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9 ]/g, '') // Remove symbols
+        .replace(/\s+/g, "-")       // Replace spaces with hyphens
+        }-${Date.now()}`;
 
-      // 3. Create the Database Record
+      // 4. Create the Database Record
       const newStory = await Story.create({
         title: finalTitle,
         slug,
-        wager,
-        storyType,
+        wager, // Mapped from 'stake' in your controller
+        storyType, // Now matches 'call-out'
         sideAContent,
         sideAVideoUrl,
-        sideAAuthorId,
-        sideBAuthorId: sideBAuthorId || null,
-        // Start as 'pending-response' until the opponent records their side
+        sideAAuthorId, // The logged-in user's ID
+        sideBAuthorId, // The ID found in Step 2
         status: "pending-response",
       });
 
