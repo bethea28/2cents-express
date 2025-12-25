@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 const User = require("../user/user.model");
-const Image = require("../image/image.model"); // Import the Image model
+const Image = require("../image/image.model");
 
 const Story = sequelize.define(
   "Story",
@@ -15,15 +15,19 @@ const Story = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    wager: { // NEW: To store the stakes of the beef
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     slug: {
       type: DataTypes.STRING,
       unique: true,
       allowNull: true,
     },
-    storyType: {
-      type: DataTypes.ENUM("one-sided", "two-sided"),
+    storyType: { // UPDATED: Added call-out
+      type: DataTypes.ENUM("one-sided", "two-sided", "call-out"),
       allowNull: true,
-      defaultValue: "one-sided",
+      defaultValue: "call-out",
     },
     sideAContent: {
       type: DataTypes.TEXT,
@@ -36,10 +40,7 @@ const Story = sequelize.define(
     sideAAuthorId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: {
-        model: User,
-        key: "id",
-      },
+      references: { model: User, key: "id" },
     },
     sideAAcknowledged: {
       type: DataTypes.BOOLEAN,
@@ -56,19 +57,16 @@ const Story = sequelize.define(
     sideBAuthorId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: {
-        model: User,
-        key: "id",
-      },
+      references: { model: User, key: "id" },
     },
     sideBAcknowledged: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    status: {
-      type: DataTypes.ENUM("draft", "pending-second", "complete", "archived"),
+    status: { // UPDATED: Added pending-response
+      type: DataTypes.ENUM("draft", "pending-response", "complete", "archived"),
       allowNull: false,
-      defaultValue: "draft",
+      defaultValue: "pending-response",
     },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
@@ -76,6 +74,7 @@ const Story = sequelize.define(
   {}
 );
 
+// ... keep all your Image and User associations exactly as they are below ...
 // Define associations with the User model
 Story.belongsTo(User, { foreignKey: "sideAAuthorId", as: "sideAAuthor" });
 Story.belongsTo(User, { foreignKey: "sideBAuthorId", as: "sideBAuthor" });

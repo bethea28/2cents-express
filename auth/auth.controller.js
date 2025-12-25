@@ -26,6 +26,7 @@ const authController = {
     }
   },
   async login(req, res) {
+    console.log('loggin in ghost')
     try {
       const { email, password } = req.body;
       const { token, user, refreshToken } = await authService.loginUser(

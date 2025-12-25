@@ -29,49 +29,57 @@ const authService = {
       throw error;
     }
   },
-
   async loginUser(email, password) {
-    console.log("LOGGIN IN NOW", email, password);
+    console.log("🚀 Attempting login for:", email);
     try {
-      const user = await User.findOne({ where: { email } });
+      // 1. Find user and EXPLICITLY include the password field
+      // By default, your model likely excludes it for security, 
+      // but we need it here for the comparison.
+      const user = await User.findOne({
+        where: { email },
+        attributes: ['id', 'username', 'email', 'password']
+      });
 
-      console.log("USER WAS GOOD", user);
-
+      // 2. If user doesn't exist, return null
       if (!user) {
-        return null; // Invalid credentials (user not found)
+        console.log("❌ Login failed: User not found");
+        return null;
       }
 
+      // 3. Compare the provided plain-text password with the stored hash
+      // user.password is now available because of the 'attributes' block above
       const passwordMatch = await bcrypt.compare(password, user.password);
 
       if (!passwordMatch) {
-        return null; // Invalid credentials (password mismatch)
+        console.log("❌ Login failed: Password mismatch");
+        return null;
       }
 
-      // Generate a JWT token
-      const token = jwt.sign({ id: user.id }, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "1h", // Example expiration
-      });
+      console.log("✅ Login successful for:", user.username);
+
+      // 4. Generate JWT Tokens
+      const token = jwt.sign(
+        { id: user.id },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1h" }
+      );
+
       const refreshToken = jwt.sign(
         { id: user.id },
         process.env.REFRESH_TOKEN_SECRET
       );
 
-      // function generateAccessToken(user) {
-      //   return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-      //     expiresIn: "15m",
-      //   });
-      // }
+      // Return user (without the hash for the frontend) and tokens
+      const userResponse = user.toJSON();
+      delete userResponse.password;
 
-      // function generateRefreshToken(user) {
-      //   return jwt.sign(user, process.env.REFRESH_TOKEN_SECRET);
-      // }
+      return { user: userResponse, token, refreshToken };
 
-      return { user, token, refreshToken };
     } catch (error) {
       console.error("Error in authService.loginUser:", error);
       throw error;
     }
-  },
+  }
 
   // Potentially other auth-related service methods (e.g., password reset logic)
 };
