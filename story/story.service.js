@@ -101,7 +101,14 @@ class StoryService {
     });
   }
   async updateStory(storyId, updateData) {
-    console.log('Updating story record:', storyId);
+    let finalUpdateData = null
+
+    if (updateData?.formData) {// rebuttal logic is an array formaData
+      console.log('rebuttal', storyId)
+      finalUpdateData = { status: 'complete', sideBAcknowledged: true, rebuttalSubmittedAt: new Date() }
+    } else {
+      finalUpdateData = updateData
+    }
     try {
       const story = await Story.findByPk(storyId);
 
@@ -109,8 +116,9 @@ class StoryService {
         throw new Error('Story not found');
       }
 
+      console.log('Updating story record:', finalUpdateData);
       // Apply the updates (e.g., sideBAcknowledged: true)
-      return await story.update(updateData);
+      return await story.update(finalUpdateData);
     } catch (error) {
       console.error("Service Error updating story:", error);
       throw error;
