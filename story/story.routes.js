@@ -16,6 +16,11 @@ router.get(
   authenticateToken,
   storyController.getAllPendingStories
 );
+router.patch(
+  "/:userId",
+  authenticateToken,
+  storyController.updateStory
+);
 // router.get("/getAllPendingStories", authenticateToken, storyController.getAllPendingStories);
 // router.post("/createStory", storyController.createStory);
 // router.post("/createStory", authenticateToken, storyController.createStory);

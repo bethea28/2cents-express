@@ -24,6 +24,14 @@ const Story = sequelize.define(
       unique: true,
       allowNull: true,
     },
+    sideBViewedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    rebuttalSubmittedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     storyType: { // UPDATED: Added call-out
       type: DataTypes.ENUM("one-sided", "two-sided", "call-out"),
       allowNull: true,

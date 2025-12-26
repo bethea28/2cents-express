@@ -84,6 +84,18 @@ const storyController = {
       console.error("Controller Error:", error);
       return res.status(500).json({ error: error.message });
     }
+  },
+  async updateStory(req, res) {
+    try {
+      const { userId: id } = req.params; // From the URL
+      const updateData = req.body; // { sideBAcknowledged: true }
+
+      const updatedStory = await StoryService.updateStory(id, updateData);
+
+      return res.status(200).json(updatedStory);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
   }
 };
 

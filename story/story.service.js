@@ -100,6 +100,22 @@ class StoryService {
       order: [['createdAt', 'DESC']]
     });
   }
+  async updateStory(storyId, updateData) {
+    console.log('Updating story record:', storyId);
+    try {
+      const story = await Story.findByPk(storyId);
+
+      if (!story) {
+        throw new Error('Story not found');
+      }
+
+      // Apply the updates (e.g., sideBAcknowledged: true)
+      return await story.update(updateData);
+    } catch (error) {
+      console.error("Service Error updating story:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new StoryService();
