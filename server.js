@@ -45,6 +45,7 @@ require("./user/user.model");
 require("./story/story.model");
 
 sequelize.sync({ alter: true })
+  // sequelize.sync({ force: true })
   .then(() => console.log("🚀 Postgres tables are synced and ready!"))
   .catch(err => console.log("❌ Sync error:", err));
 

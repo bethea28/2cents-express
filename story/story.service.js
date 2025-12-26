@@ -85,6 +85,21 @@ class StoryService {
       throw error;
     }
   }
+  async getAllPendingStories(userId) {
+    console.log('gettinga all pending stories for user', userId)
+    return await Story.findAll({
+      where: {
+        sideBAuthorId: userId,
+        status: "pending-response"
+      },
+      include: [{
+        model: User,
+        as: 'SideA', // This assumes you have the 'belongsTo' association set up in your models
+        attributes: ['username', 'firstName'] // Only get the info you need for the UI
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+  }
 }
 
 module.exports = new StoryService();

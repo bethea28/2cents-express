@@ -76,9 +76,18 @@ const Story = sequelize.define(
 
 // ... keep all your Image and User associations exactly as they are below ...
 // Define associations with the User model
-Story.belongsTo(User, { foreignKey: "sideAAuthorId", as: "sideAAuthor" });
-Story.belongsTo(User, { foreignKey: "sideBAuthorId", as: "sideBAuthor" });
+// Story.belongsTo(User, { foreignKey: "sideAAuthorId", as: "sideAAuthor" });
+// Story.belongsTo(User, { foreignKey: "sideBAuthorId", as: "sideBAuthor" });
+// Story belongs to the creator (Side A)
+Story.belongsTo(User, { as: 'SideA', foreignKey: 'sideAAuthorId' });
 
+// Story belongs to the opponent (Side B)
+Story.belongsTo(User, { as: 'SideB', foreignKey: 'sideBAuthorId' });
+
+// Add these to fully complete the loop
+User.hasMany(Story, { foreignKey: 'sideAAuthorId', as: 'StartedStories' });
+User.hasMany(Story, { foreignKey: 'sideBAuthorId', as: 'ReceivedChallenges' });
+// Optional: User can have many stories they started
 // Define many-to-many relationship for Side A images
 const SideAImage = sequelize.define("SideAImage", {
   storyId: {

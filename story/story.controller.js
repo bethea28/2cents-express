@@ -69,6 +69,22 @@ const storyController = {
       return res.status(500).json({ error: error.message });
     }
   },
+
+  // In story.controller.js
+  async getAllPendingStories(req, res) {
+    try {
+      // Correct way: Pull from the URL params defined in the route
+      const { userId } = req.params;
+
+      console.log("Fetching stories for User ID:", userId);
+
+      const stories = await StoryService.getAllPendingStories(userId);
+      return res.status(200).json(stories);
+    } catch (error) {
+      console.error("Controller Error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  }
 };
 
 module.exports = storyController;

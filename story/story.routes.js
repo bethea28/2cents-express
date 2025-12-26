@@ -11,12 +11,13 @@ const upload = multer({
   }
 });
 router.post('/createStory', authenticateToken, upload.single('sideAVideo'), storyController.createStory);
+router.get(
+  "/:userId/getAllPendingStories",
+  authenticateToken,
+  storyController.getAllPendingStories
+);
+// router.get("/getAllPendingStories", authenticateToken, storyController.getAllPendingStories);
 // router.post("/createStory", storyController.createStory);
 // router.post("/createStory", authenticateToken, storyController.createStory);
 // router.get("/getAllStories", authenticateToken, storyController.getAllStories);
-// router.get(
-//   "/:userId/getAllPendingStories",
-//   authenticateToken,
-//   storyController.getAllPendingStories
-// );
 module.exports = router;
