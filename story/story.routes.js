@@ -40,7 +40,7 @@ router.get(
 );
 // GLOBAL FEED (Public)
 router.get(
-  "/complete",
+  "/getAllCompleteStories",
   authenticateToken,
   storyController.getAllCompleteStories
 );
