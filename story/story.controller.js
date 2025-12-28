@@ -1,72 +1,69 @@
 const bucket = require("../firebase.config"); // Import your Firebase bucket
 const StoryService = require("./story.service");
+// Helper for Firebase (Define this at the top of your controller file)
+const uploadToFirebase = (file) => {
+  return new Promise((resolve, reject) => {
+    const fileName = `videos/${Date.now()}_${file.originalname}`;
+    const fileUpload = bucket.file(fileName);
+    const blobStream = fileUpload.createWriteStream({ metadata: { contentType: file.mimetype } });
 
+    blobStream.on("error", (error) => reject(error));
+    blobStream.on("finish", () => {
+      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+      resolve(url);
+    });
+    blobStream.end(file.buffer);
+  });
+};
 const storyController = {
+  // --- THE REBUTTAL CONTROLLER ---
+  async submitRebuttal(req, res) {
+    console.log('handele rebuttal server')
+    try {
+      const { id } = req.params; // The Story ID
+      const file = req.file;
+
+      if (!file) return res.status(400).json({ error: "Rebuttal video is required." });
+
+      // 1. Upload to Firebase using our helper
+      const publicUrl = await uploadToFirebase(file);
+
+      // 2. Update the Story via Service
+      const updatedStory = await StoryService.completeStory(id, {
+        sideBVideoUrl: publicUrl,
+        sideBAcknowledged: true
+      });
+
+      return res.status(200).json(updatedStory);
+    } catch (error) {
+      console.error("Rebuttal Error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  },
+  // --- THE CREATE STORY CONTROLLER (SIDE A) ---
   async createStory(req, res) {
     try {
       const file = req.file;
-      const { title, opponentHandle, stake, storyType } = req.body; // Destructure the new fields
+      const { title, opponentHandle, stake, storyType } = req.body;
 
-      if (!file) {
-        return res.status(400).json({ error: "Video file is required." });
-      }
+      if (!file) return res.status(400).json({ error: "Video file is required." });
 
-      // 1. Prepare Firebase path
-      const fileName = `videos/${Date.now()}_${file.originalname}`;
-      const fileUpload = bucket.file(fileName);
+      // USE THE HELPER
+      const publicUrl = await uploadToFirebase(file, "challenges");
 
-      const blobStream = fileUpload.createWriteStream({
-        metadata: { contentType: file.mimetype },
-      });
+      const storyData = {
+        title,
+        opponentHandle,
+        wager: stake,
+        storyType,
+        sideAVideoUrl: publicUrl,
+      };
 
-      blobStream.on("error", (error) => {
-        console.error("Firebase Upload Error:", error);
-        return res.status(500).json({ error: "Cloud storage upload failed." });
-      });
-
-      blobStream.on("finish", async () => {
-        // 2. Public Firebase URL
-        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-
-        // 3. Prepare data for the Service Layer
-        const storyData = {
-          title: title,
-          opponentHandle: opponentHandle,
-          wager: stake, // Ensure your DB column name (wager) matches this mapping
-          storyType: storyType, // Will be 'call-out'
-          sideAVideoUrl: publicUrl,
-        };
-
-        // Use the ID from the logged-in user (JWT/Session)
-        const sideAAuthorId = req.user.id;
-
-        // try {
-        //   const newStory = await StoryService.createStory(storyData, sideAAuthorId);
-        //   return res.status(201).json({
-        //     message: `Conflict initiated successfully.`,
-        //     story: newStory,
-        //   });
-        // } catch (dbError) {
-        //   console.error("Database Error:", dbError);
-        //   return res.status(400).json({ error: dbError.message });
-        // }
-
-        // Inside storyController.js
-        try {
-          const newStory = await StoryService.createStory(storyData, sideAAuthorId);
-          return res.status(201).json(newStory);
-        } catch (dbError) {
-          console.error("Database Error:", dbError);
-          // This sends "User @dan does not exist" back to the app
-          return res.status(400).json({ error: dbError.message });
-        }
-      });
-
-      blobStream.end(file.buffer);
+      const newStory = await StoryService.createStory(storyData, req.user.id);
+      return res.status(201).json(newStory);
 
     } catch (error) {
-      console.error("Controller Error:", error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: error.message || error });
     }
   },
 
@@ -82,6 +79,15 @@ const storyController = {
       return res.status(200).json(stories);
     } catch (error) {
       console.error("Controller Error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  },
+  async getAllCompleteStories(req, res) {
+    try {
+      // No userId needed here because it's public
+      const stories = await StoryService.getAllCompleteStories();
+      return res.status(200).json(stories);
+    } catch (error) {
       return res.status(500).json({ error: error.message });
     }
   },

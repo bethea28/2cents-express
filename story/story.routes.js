@@ -10,11 +10,39 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024 // Limits uploads to 50MB
   }
 });
-router.post('/createStory', authenticateToken, upload.single('sideAVideo'), storyController.createStory);
+// router.post('/createStory', authenticateToken, upload.single('sideAVideo'), storyController.createStory);
+// 1. Create the Beef (Side A)
+router.post(
+  '/createStory',
+  authenticateToken,
+  upload.single('video'), // Frontend sends 'video'
+  storyController.createStory
+);
+
+// 2. Respond to the Beef (Side B)
+router.patch(
+  '/rebuttal/:id',
+  authenticateToken,
+  upload.single('video'), // Frontend also sends 'video' here
+  storyController.submitRebuttal
+);
+// Add this for Rebuttals
+router.patch(
+  '/updateSideBVideo/:id',
+  authenticateToken,
+  upload.single('sideBVideo'), // <--- Tells Multer to catch the Rebuttal file
+  storyController.updateStory // Or whatever your update function is named
+);
 router.get(
   "/:userId/getAllPendingStories",
   authenticateToken,
   storyController.getAllPendingStories
+);
+// GLOBAL FEED (Public)
+router.get(
+  "/complete",
+  authenticateToken,
+  storyController.getAllCompleteStories
 );
 router.patch(
   "/:userId",

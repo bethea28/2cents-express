@@ -85,6 +85,36 @@ class StoryService {
       throw error;
     }
   }
+  async completeStory(storyId, updateData) {
+    try {
+      const story = await Story.findByPk(storyId);
+      if (!story) throw new Error("Story not found");
+
+      // Automatically flip status to complete
+      return await story.update({
+        ...updateData,
+        status: 'complete',
+        sideBViewedAt: new Date(), // Optional: mark when they responded
+        rebuttalSubmittedAt: new Date()
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+  // In StoryService.js
+  async getAllCompleteStories() {
+    return await Story.findAll({
+      where: {
+        status: 'complete' // Only show finished beefs
+      },
+      // include: [
+      //   { model: User, as: 'SideA', attributes: ['username', 'avatar'] },
+      //   { model: User, as: 'SideB', attributes: ['username', 'avatar'] }
+      // ],
+      order: [['updatedAt', 'DESC']] // Newest completions first
+    });
+  }
+
   async getAllPendingStories(userId) {
     console.log('gettinga all pending stories for user', userId)
     return await Story.findAll({
