@@ -15,6 +15,26 @@ const Story = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // Add these to your existing Story model definition
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    votingEndsAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.ENUM(
+        "draft",
+        "pending-acceptance", // Stage 1: Waiting for B to say "Yes"
+        "pending-rebuttal",   // Stage 2: B accepted, waiting for video
+        "active-voting",      // Stage 3: The 72-hour Arena
+        "settled",            // Stage 4: Winner declared
+        "expired"             // Stage 5: Someone ducked the fight
+      ),
+      defaultValue: "pending-acceptance",
+    },
     wager: { // NEW: To store the stakes of the beef
       type: DataTypes.STRING,
       allowNull: true,
@@ -71,11 +91,7 @@ const Story = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    status: { // UPDATED: Added pending-response
-      type: DataTypes.ENUM("draft", "pending-response", "complete", "archived"),
-      allowNull: false,
-      defaultValue: "pending-response",
-    },
+
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

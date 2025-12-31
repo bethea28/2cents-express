@@ -18,6 +18,12 @@ router.post(
   upload.single('video'), // Frontend sends 'video'
   storyController.createStory
 );
+router.post(
+  '/storiesVote/:id',
+  authenticateToken,
+  upload.single('video'), // Frontend sends 'video'
+  storyController.createStory
+);
 
 // 2. Respond to the Beef (Side B)
 router.patch(
@@ -25,6 +31,15 @@ router.patch(
   authenticateToken,
   upload.single('video'), // Frontend also sends 'video' here
   storyController.submitRebuttal
+);
+// story.routes.js
+
+// STAGE 2: The Handshake
+// This route moves a story from 'pending-acceptance' to 'pending-rebuttal'
+router.patch(
+  '/acceptChallenge/:id',
+  authenticateToken,
+  storyController.acceptStory // Hits your new controller method
 );
 // Add this for Rebuttals
 router.patch(
@@ -37,6 +52,11 @@ router.get(
   "/:userId/getAllPendingStories",
   authenticateToken,
   storyController.getAllPendingStories
+);
+router.get(
+  "/getStoryById/:id",
+  authenticateToken,
+  storyController.getStoryById
 );
 // GLOBAL FEED (Public)
 router.get(

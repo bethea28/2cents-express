@@ -1,12 +1,12 @@
-const bucket = require("../firebase.config"); // Import your Firebase bucket
+const bucket = require("../firebase.config");
 const StoryService = require("./story.service");
-// Helper for Firebase (Define this at the top of your controller file)
+
+// Firebase Helper
 const uploadToFirebase = (file) => {
   return new Promise((resolve, reject) => {
     const fileName = `videos/${Date.now()}_${file.originalname}`;
     const fileUpload = bucket.file(fileName);
     const blobStream = fileUpload.createWriteStream({ metadata: { contentType: file.mimetype } });
-
     blobStream.on("error", (error) => reject(error));
     blobStream.on("finish", () => {
       const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
@@ -15,90 +15,140 @@ const uploadToFirebase = (file) => {
     blobStream.end(file.buffer);
   });
 };
+
 const storyController = {
-  // --- THE REBUTTAL CONTROLLER ---
-  async submitRebuttal(req, res) {
-    console.log('handele rebuttal server')
+  // --- SIDE A: INITIAL CALL-OUT ---
+  async createStory(req, res) {
+    try {
+      const sideAAuthorId = req.user.id;
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Video required." });
+
+      const publicUrl = await uploadToFirebase(file);
+      const storyData = { ...req.body, sideAVideoUrl: publicUrl };
+
+      const newStory = await StoryService.createStory(storyData, sideAAuthorId);
+      return res.status(201).json({ success: true, data: newStory });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  },
+
+  // --- STAGE 2: THE HANDSHAKE (User B Accepts the Terms) ---
+  async acceptStory(req, res) {
     try {
       const { id } = req.params; // The Story ID
+      const userId = req.user.id; // The logged-in User B
+
+      // 1. Call the service to update status and RESET the 24h clock
+      const updatedStory = await StoryService.acceptChallenge(id, userId);
+
+      // 2. Return the updated story so the frontend can update the UI
+      return res.status(200).json({
+        success: true,
+        message: "Challenge accepted! You have 24 hours to record your rebuttal.",
+        data: updatedStory
+      });
+    } catch (error) {
+      console.error("Accept Story Error:", error);
+
+      // Handle specific unauthorized or not found cases
+      const statusCode = error.message.includes("Unauthorized") ? 403 : 404;
+      return res.status(error.message ? statusCode : 500).json({
+        error: error.message || "An error occurred while accepting the challenge."
+      });
+    }
+  },
+
+  // --- SIDE B: THE REBUTTAL (Starts the 72h Clock) ---
+  async submitRebuttal(req, res) {
+    try {
+      const { id } = req.params;
       const file = req.file;
+      const sideBAuthorId = req.user.id;
 
-      if (!file) return res.status(400).json({ error: "Rebuttal video is required." });
+      if (!file) return res.status(400).json({ error: "Rebuttal video required." });
 
-      // 1. Upload to Firebase using our helper
       const publicUrl = await uploadToFirebase(file);
 
-      // 2. Update the Story via Service
-      const updatedStory = await StoryService.completeStory(id, {
+      // We call activateArena to trigger the 72-hour voting logic
+      const activeStory = await StoryService.activateArena(id, sideBAuthorId, {
         sideBVideoUrl: publicUrl,
         sideBAcknowledged: true
       });
 
-      return res.status(200).json(updatedStory);
+      return res.status(200).json({ success: true, data: activeStory });
     } catch (error) {
-      console.error("Rebuttal Error:", error);
       return res.status(500).json({ error: error.message });
     }
   },
-  // --- THE CREATE STORY CONTROLLER (SIDE A) ---
-  async createStory(req, res) {
+
+  // --- RE-ADDED: updateStory (Fixes the Route Crash) ---
+  async updateStory(req, res) {
     try {
-      const file = req.file;
-      const { title, opponentHandle, stake, storyType } = req.body;
-
-      if (!file) return res.status(400).json({ error: "Video file is required." });
-
-      // USE THE HELPER
-      const publicUrl = await uploadToFirebase(file, "challenges");
-
-      const storyData = {
-        title,
-        opponentHandle,
-        wager: stake,
-        storyType,
-        sideAVideoUrl: publicUrl,
-      };
-
-      const newStory = await StoryService.createStory(storyData, req.user.id);
-      return res.status(201).json(newStory);
-
+      const { id } = req.params;
+      // Use the generic service update for simple field changes
+      const updatedStory = await StoryService.updateStory(id, req.body);
+      return res.status(200).json(updatedStory);
     } catch (error) {
-      return res.status(500).json({ error: error.message || error });
+      return res.status(500).json({ error: error.message });
     }
   },
 
-  // In story.controller.js
   async getAllPendingStories(req, res) {
     try {
-      // Correct way: Pull from the URL params defined in the route
       const { userId } = req.params;
-
-      console.log("Fetching stories for User ID:", userId);
-
       const stories = await StoryService.getAllPendingStories(userId);
       return res.status(200).json(stories);
     } catch (error) {
-      console.error("Controller Error:", error);
       return res.status(500).json({ error: error.message });
+    }
+  },
+  async getStoryById(req, res) {
+    try {
+      const { id } = req.params;
+
+      // 🛠 ENGINEER: Delegate to the service layer
+      const story = await StoryService.getStoryById(id);
+
+      if (!story) {
+        return res.status(404).json({
+          success: false,
+          message: "Challenge not found"
+        });
+      }
+
+      return res.status(200).json(story);
+    } catch (error) {
+      console.error("Error in getStoryById Controller:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal Server Error"
+      });
+    }
+  },
+  // storyController.js
+  async updateStory(req, res) {
+    try {
+      const { userId } = req.params;
+      const updateData = req.body;
+
+      // This calls the service we fixed above
+      console.log('first story id', req.params)
+      const updatedStory = await StoryService.updateStory(userId, updateData);
+
+      return res.status(200).json(updatedStory);
+    } catch (error) {
+      console.error("Update Story Error:", error);
+      return res.status(error.message === 'Story not found' ? 404 : 500).json({
+        message: error.message || "Internal Server Error"
+      });
     }
   },
   async getAllCompleteStories(req, res) {
     try {
-      // No userId needed here because it's public
       const stories = await StoryService.getAllCompleteStories();
       return res.status(200).json(stories);
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
-  },
-  async updateStory(req, res) {
-    try {
-      const { userId: id } = req.params; // From the URL
-      const updateData = req.body; // { sideBAcknowledged: true }
-
-      const updatedStory = await StoryService.updateStory(id, updateData);
-
-      return res.status(200).json(updatedStory);
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
@@ -106,91 +156,3 @@ const storyController = {
 };
 
 module.exports = storyController;
-
-// const storyController = {
-//   async createStory(req, res) {
-//     try {
-//       const storyData = req.body;
-//       const sideAAuthorId = req.user.id; // Assuming your JWT middleware populates req.user
-
-//       console.log("req body now nick just req", req);
-//       console.log("ALL STORY DATA NOW ", storyData);
-//       // return;
-//       const newStory = await StoryService.createStory(storyData, sideAAuthorId);
-
-//       return res.status(201).json({
-//         message: `Story created successfully (${newStory.storyType}).`,
-//         story: newStory,
-//       });
-//     } catch (error) {
-//       console.error("Error creating story:", error);
-//       let statusCode = 500;
-//       if (
-//         error.message.includes("required") ||
-//         error.message.includes("Invalid")
-//       ) {
-//         statusCode = 400;
-//       } else if (error.message.includes("already exists")) {
-//         statusCode = 409;
-//       }
-//       return res.status(statusCode).json({ error: error.message });
-//     }
-//   },
-//   async getAllStories(req, res) {
-//     try {
-//       // const storyData = req.body;
-//       // const sideAAuthorId = req.user.id; // Assuming your JWT middleware populates req.user
-
-//       console.log("req body now nick");
-//       // console.log("USER ID NOW nicky ", storyData);
-//       const newStory = await StoryService.getAllStories();
-
-//       return res.status(201).json({
-//         message: `Got all stories`,
-//         allStories: newStory,
-//       });
-//     } catch (error) {
-//       console.error("Error creating story:", error);
-//       let statusCode = 500;
-//       if (
-//         error.message.includes("required") ||
-//         error.message.includes("Invalid")
-//       ) {
-//         statusCode = 400;
-//       } else if (error.message.includes("already exists")) {
-//         statusCode = 409;
-//       }
-//       return res.status(statusCode).json({ error: error.message });
-//     }
-//   },
-//   async getAllPendingStories(req, res) {
-//     try {
-//       // return;
-//       // const storyData = req.body;
-//       // const sideAAuthorId = req.user.id; // Assuming your JWT middleware populates req.user
-//       const userId = req.params;
-//       console.log("step one again", userId);
-//       // console.log("USER ID NOW nicky ", storyData);
-//       const newStory = await StoryService.getAllPendingStories(req, res);
-//       console.log("PENDING STORIES NOW", newStory);
-//       return res.status(201).json({
-//         message: `Got all Pending stories`,
-//         allPendingStories: newStory,
-//       });
-//     } catch (error) {
-//       console.error("Error creating story:", error);
-//       let statusCode = 500;
-//       if (
-//         error.message.includes("required") ||
-//         error.message.includes("Invalid")
-//       ) {
-//         statusCode = 400;
-//       } else if (error.message.includes("already exists")) {
-//         statusCode = 409;
-//       }
-//       return res.status(statusCode).json({ error: error.message });
-//     }
-//   },
-// };
-
-// module.exports = storyController;
