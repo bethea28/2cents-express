@@ -124,11 +124,16 @@ class StoryService {
   // --- FEED LOGIC: COMPLETED BEEFS ---
   async getAllCompleteStories() {
     return await Story.findAll({
-      where: { status: 'complete' }, // Only fully finished beefs
+      where: {
+        status: {
+          // 🛠 ENGINEER: Use the exact ENUM values from your model.
+          // 'complete' was a hallucination; 'settled' is the real value.
+          [Op.in]: ['active-voting', 'settled']
+        }
+      },
       order: [['updatedAt', 'DESC']]
     });
   }
-
   // Generic update for minor edits
   // storyController.js
   async updateStory(storyId, updateData) {
