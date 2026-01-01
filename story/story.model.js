@@ -15,7 +15,6 @@ const Story = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    // Add these to your existing Story model definition
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: true,
@@ -27,15 +26,28 @@ const Story = sequelize.define(
     status: {
       type: DataTypes.ENUM(
         "draft",
-        "pending-acceptance", // Stage 1: Waiting for B to say "Yes"
-        "pending-rebuttal",   // Stage 2: B accepted, waiting for video
-        "active-voting",      // Stage 3: The 72-hour Arena
-        "settled",            // Stage 4: Winner declared
-        "expired"             // Stage 5: Someone ducked the fight
+        "pending-acceptance",
+        "pending-rebuttal",
+        "active-voting",
+        "settled",
+        "expired"
       ),
       defaultValue: "pending-acceptance",
     },
-    wager: { // NEW: To store the stakes of the beef
+    // --- VOTE COUNTERS ---
+    // These are the columns the error was complaining about!
+    challengerVotes: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      allowNull: false,
+    },
+    rebuttalVotes: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      allowNull: false,
+    },
+    // ---------------------
+    wager: {
       type: DataTypes.STRING,
       allowNull: true,
     },
@@ -52,7 +64,7 @@ const Story = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
-    storyType: { // UPDATED: Added call-out
+    storyType: {
       type: DataTypes.ENUM("one-sided", "two-sided", "call-out"),
       allowNull: true,
       defaultValue: "call-out",
@@ -91,13 +103,13 @@ const Story = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
   {}
 );
 
+// ... (keep all your existing associations and through-table definitions below)
 // ... keep all your Image and User associations exactly as they are below ...
 // Define associations with the User model
 // Story.belongsTo(User, { foreignKey: "sideAAuthorId", as: "sideAAuthor" });

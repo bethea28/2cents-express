@@ -7,6 +7,7 @@ const port = 3000;
 
 const authRoutes = require("./auth/auth.routes");
 const storyRoutes = require("./story/story.routes");
+const voteRoutes = require("./vote/vote.routes");
 
 // --- 1. BOOTSTRAP: Ensure upload folder exists ---
 const uploadDir = path.join(__dirname, "uploads/videos");
@@ -36,6 +37,7 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/stories", storyRoutes);
+app.use("/vote", voteRoutes);
 
 // app.listen(port, () => {
 //   console.log(`🚀 Server running at http://localhost:${port}`);
