@@ -2,9 +2,10 @@ const Comment = require("./comment.model");
 const Vote = require("../vote/vote.model");
 const User = require("../user/user.model");
 
-const CommentService = {
+class CommentService {
+  // Method 1: Posting the Diss
   async postComment({ userId, storyId, content, parentId }) {
-    // 🛠 ENGINEER: Check the "Vote" table to see which side this user is on
+    // 🛠 ENGINEER: Always wrap DB operations in try/catch or handle them in the controller
     const userVote = await Vote.findOne({ where: { userId, storyId } });
 
     // If they haven't voted, they are 'Neutral'
@@ -14,35 +15,39 @@ const CommentService = {
       userId,
       storyId,
       content,
-      parentId,
+      parentId: parentId || null, // Ensure null if no parent
       side
     });
 
-    // Re-fetch with User details so the frontend has the username/avatar immediately
+    // Re-fetch with User details
     return await Comment.findByPk(comment.id, {
       include: [{ model: User, as: 'author', attributes: ['username', 'profilePic'] }]
     });
-  },
+  } // <-- REMOVED COMMA (Classes use method syntax, not object syntax)
 
+  // Method 2: Getting the Feed
   async fetchCommentsByStory(storyId, page, limit) {
-    const offset = (page - 1) * limit;
+    const parsedLimit = parseInt(limit) || 20;
+    const parsedPage = parseInt(page) || 1;
+    const offset = (parsedPage - 1) * parsedLimit;
+
     return await Comment.findAndCountAll({
-      where: { storyId, parentId: null }, // Top-level only
+      where: { storyId, parentId: null },
       include: [
         { model: User, as: 'author', attributes: ['username', 'profilePic'] },
-        // Nested replies preview (Optional)
         {
           model: Comment,
           as: 'replies',
           limit: 3,
-          include: [{ model: User, as: 'author', attributes: ['username'] }]
+          include: [{ model: User, as: 'author', attributes: ['username', 'profilePic'] }]
         }
       ],
       order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parsedLimit,
+      offset: offset
     });
   }
-};
+}
 
-module.exports = CommentService;
+// Exporting a SINGLETON (one instance for the whole app)
+module.exports = new CommentService();
