@@ -33,9 +33,12 @@ class VoteService {
         // Atomically adjust both counters
         await story.decrement(oldField, { by: 1, transaction: t });
         await story.increment(newField, { by: 1, transaction: t });
-      } else {
-        // Tapping the same side again
-        throw new Error("You are already on this team!");
+      }
+      else {
+        // 🛠 THE FIX: Tapping the same side again.
+        // Instead of throwing an error, we just return the story as-is.
+        // This stops the 500 error and keeps the UI happy.
+        return await story.reload({ transaction: t });
       }
 
       return await story.reload({ transaction: t });
