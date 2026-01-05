@@ -6,18 +6,19 @@ const commentController = {
     try {
       const userId = req.user.id;
       const { storyId } = req.params; // From URL: /api/comments/:storyId
-      const { content, parentId } = req.body;
+
+      const { content, parentId, side } = req.body; // 👈 Add 'side' here
 
       if (!content) {
         return res.status(400).json({ error: "Comment content cannot be empty." });
       }
 
-      // 1. Call service to handle logic (and "Side" detection)
       const newComment = await CommentService.postComment({
         userId,
         storyId,
         content,
-        parentId
+        parentId,
+        side // 👈 Pass it to the service
       });
 
       // 2. Return the new comment with author details for immediate UI update

@@ -29,6 +29,11 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    profilePic: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "https://via.placeholder.com/150", // Standard fallback
+    },
     firstName: {
       type: DataTypes.STRING,
       allowNull: true,

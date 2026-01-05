@@ -4,25 +4,24 @@ const User = require("../user/user.model");
 
 class CommentService {
   // Method 1: Posting the Diss
-  async postComment({ userId, storyId, content, parentId }) {
-    // 🛠 ENGINEER: Always wrap DB operations in try/catch or handle them in the controller
+  async postComment({ userId, storyId, content, parentId, side }) {    // 🛠 ENGINEER: Always wrap DB operations in try/catch or handle them in the controller
     const userVote = await Vote.findOne({ where: { userId, storyId } });
 
     // If they haven't voted, they are 'Neutral'
-    const side = userVote ? userVote.side : 'Neutral';
+    // const side = userVote ? userVote.side : 'Neutral';
 
     const comment = await Comment.create({
       userId,
       storyId,
       content,
-      parentId: parentId || null, // Ensure null if no parent
-      side
+      parentId: parentId || null,
+      side: side || 'Neutral' // Fallback just in case
     });
 
     // Re-fetch with User details
     return await Comment.findByPk(comment.id, {
       include: [{ model: User, as: 'author', attributes: ['username', 'profilePic'] }]
-    });
+    })
   } // <-- REMOVED COMMA (Classes use method syntax, not object syntax)
 
   // Method 2: Getting the Feed
