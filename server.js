@@ -9,6 +9,7 @@ const authRoutes = require("./auth/auth.routes");
 const storyRoutes = require("./story/story.routes");
 const voteRoutes = require("./vote/vote.routes");
 const commentRoutes = require("./comment/comment.routes");
+const likeRoutes = require("./like/like.routes");
 
 // --- 1. BOOTSTRAP: Ensure upload folder exists ---
 const uploadDir = path.join(__dirname, "uploads/videos");
@@ -40,6 +41,7 @@ app.use("/auth", authRoutes);
 app.use("/stories", storyRoutes);
 app.use("/votes", voteRoutes);
 app.use("/comments", commentRoutes);
+app.use("/likes", likeRoutes);
 
 // app.listen(port, () => {
 //   console.log(`🚀 Server running at http://localhost:${port}`);
