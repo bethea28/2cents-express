@@ -1,63 +1,64 @@
 // auth/auth.service.js
-const { Sequelize } = require("sequelize"); // Import the Sequelize constructor
-
+const { Sequelize } = require("sequelize");
 const User = require("../user/user.model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const authService = {
-  async registerUser({ username, email, password }) {
+  // Added profilePic here so it actually saves to the DB!
+  async registerUser({ username, email, password, profilePic }) {
     try {
-      // Check if user with the same username or email already exists
       const existingUser = await User.findOne({
-        where: {
-          [Sequelize.Op.or]: [{ username }, { email }],
-        },
+        where: { [Sequelize.Op.or]: [{ username }, { email }] },
       });
+
       if (existingUser) {
         throw new Error("Username or email already exists");
       }
+
       const hashedPassword = await bcrypt.hash(password, 10);
+
       const newUser = await User.create({
         username,
         email,
         password: hashedPassword,
+        profilePic, // Now saving the path from Multer
       });
-      return newUser; // Sequelize's create method returns the created instance
+
+      return newUser;
     } catch (error) {
       console.error("Error in authService.registerUser:", error);
       throw error;
     }
   },
+
   async loginUser(email, password) {
-    console.log("🚀 Attempting login for:", email);
     try {
-      // 1. Find user and EXPLICITLY include the password field
-      // By default, your model likely excludes it for security, 
-      // but we need it here for the comparison.
+      console.log("🔍 Service: Searching for fighter with email:", email);
+
+      // 1. Find the user by EMAIL ONLY
+      // We explicitly include 'password' because models usually exclude it by default
       const user = await User.findOne({
-        where: { email },
-        attributes: ['id', 'username', 'email', 'password']
+        where: { email: email.toLowerCase().trim() },
+        attributes: ["id", "username", "email", "password", "profilePic"],
       });
 
-      // 2. If user doesn't exist, return null
+      // 2. If no user is found, don't crash—return a clear failure
       if (!user) {
-        console.log("❌ Login failed: User not found");
+        console.log("❌ Service: No fighter found with that email.");
         return null;
       }
 
-      // 3. Compare the provided plain-text password with the stored hash
-      // user.password is now available because of the 'attributes' block above
-      const passwordMatch = await bcrypt.compare(password, user.password);
+      // 3. Compare the "Secret Key" (Password)
+      const isMatch = await bcrypt.compare(password, user.password);
 
-      if (!passwordMatch) {
-        console.log("❌ Login failed: Password mismatch");
+      if (!isMatch) {
+        console.log("❌ Service: Secret Key (password) does not match.");
         return null;
       }
 
-      console.log("✅ Login successful for:", user.username);
-
-      // 4. Generate JWT Tokens
+      // 4. Generate the "Arena Pass" (Tokens)
+      // We use the ID because it's the primary key that never changes
       const token = jwt.sign(
         { id: user.id },
         process.env.ACCESS_TOKEN_SECRET,
@@ -69,19 +70,24 @@ const authService = {
         process.env.REFRESH_TOKEN_SECRET
       );
 
-      // Return user (without the hash for the frontend) and tokens
+      // 5. Clean the user object before sending it to the frontend
+      // We never send the hashed password back to the phone
       const userResponse = user.toJSON();
       delete userResponse.password;
 
-      return { user: userResponse, token, refreshToken };
+      console.log("✅ Service: Login successful for", userResponse.username);
+
+      return {
+        user: userResponse,
+        token,
+        refreshToken
+      };
 
     } catch (error) {
-      console.error("Error in authService.loginUser:", error);
+      console.error("❌ Service: Fatal error during login:", error.message);
       throw error;
     }
-  }
-
-  // Potentially other auth-related service methods (e.g., password reset logic)
+  },
 };
 
 module.exports = authService;

@@ -26,21 +26,18 @@ class CommentService {
 
   // Method 2: Getting the Feed
   async fetchCommentsByStory(storyId, page, limit) {
-    const parsedLimit = parseInt(limit) || 20;
+    const parsedLimit = parseInt(limit) || 50; // Increased to ensure we get replies
     const parsedPage = parseInt(page) || 1;
     const offset = (parsedPage - 1) * parsedLimit;
 
     return await Comment.findAndCountAll({
-      where: { storyId, parentId: null },
+      // 🛠 FIX 1: Removed 'parentId: null'. We need ALL comments to build the tree.
+      where: { storyId },
       include: [
-        { model: User, as: 'author', attributes: ['username', 'profilePic'] },
-        {
-          model: Comment,
-          as: 'replies',
-          limit: 3,
-          include: [{ model: User, as: 'author', attributes: ['username', 'profilePic'] }]
-        }
+        { model: User, as: 'author', attributes: ['username', 'profilePic'] }
       ],
+      // 🛠 FIX 2: Removed the 'replies' include. 
+      // Our Frontend logic handles nesting more efficiently than Sequelize limits.
       order: [['createdAt', 'DESC']],
       limit: parsedLimit,
       offset: offset

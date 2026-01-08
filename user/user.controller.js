@@ -28,11 +28,30 @@ class UserController {
 
   async createUser(req, res) {
     try {
-      const newUser = await userService.createUser(req.body);
-      res.status(201).json(newUser);
+      // 🛠️ Staff Engineer Tip: Merge the file path into the body for the service
+      const userData = {
+        ...req.body,
+        // If a file was uploaded, use its path; otherwise, the model default kicks in
+        profilePic: req.file ? `/uploads/${req.file.filename}` : undefined
+      };
+
+      const newUser = await userService.createUser(userData);
+
+      // 🛡️ Security: Your model's defaultScope already excludes the password, 
+      // but the service refactor we did ensures it's extra safe.
+      res.status(201).json({
+        message: "Fighter registered successfully!",
+        user: newUser
+      });
     } catch (error) {
       console.error("Error creating user:", error);
-      res.status(500).json({ error: "Failed to create user" });
+
+      // 🛡️ Error Handling: Catch unique constraint errors (e.g., Email/Username taken)
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        return res.status(400).json({ error: "Username or Email already in use." });
+      }
+
+      res.status(500).json({ error: "Failed to enter the arena. Please try again." });
     }
   }
 

@@ -1,31 +1,43 @@
 const CommentService = require("./comment.service");
+const Comment = require("./comment.model"); // Ensure this is imported
+const User = require("../user/user.model");
 
 const commentController = {
-  // --- THE ARENA: POSTING A DISS ---
   async createComment(req, res) {
     try {
       const userId = req.user.id;
-      const { storyId } = req.params; // From URL: /api/comments/:storyId
+      // 1. Get storyId from URL params (/api/comments/:storyId)
+      const { storyId } = req.params;
 
-      const { content, parentId, side } = req.body; // 👈 Add 'side' here
+      // 2. 🛠 FIX: Removed 'storyId' from body to avoid shadowing the one above
+      const { content, side, parentId } = req.body;
 
       if (!content) {
         return res.status(400).json({ error: "Comment content cannot be empty." });
       }
 
-      const newComment = await CommentService.postComment({
-        userId,
-        storyId,
+      // 3. Create the comment
+      const newComment = await Comment.create({
         content,
-        parentId,
-        side // 👈 Pass it to the service
+        storyId,
+        userId,
+        side: side || 'Neutral',
+        parentId: parentId || null // 🛠 This now correctly maps to your database
       });
 
-      // 2. Return the new comment with author details for immediate UI update
+      // 4. 🛠 PRO TIP: Fetch the author so the frontend shows the username immediately
+      const commentWithAuthor = await Comment.findByPk(newComment.id, {
+        include: [{
+          model: User,
+          as: 'author',
+          attributes: ['username', 'profilePic']
+        }]
+      });
+
       return res.status(201).json({
         success: true,
         message: "Comment posted!",
-        data: newComment
+        data: commentWithAuthor
       });
     } catch (error) {
       console.error("Comment Controller Error:", error);
@@ -33,11 +45,10 @@ const commentController = {
     }
   },
 
-  // --- THE FEED: FETCHING THE TRASH TALK ---
   async getComments(req, res) {
     try {
       const { storyId } = req.params;
-      const { page = 1, limit = 20 } = req.query;
+      const { page = 1, limit = 50 } = req.query; // Raised limit to ensure all replies are fetched
 
       const result = await CommentService.fetchCommentsByStory(storyId, page, limit);
 
