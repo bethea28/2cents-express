@@ -21,6 +21,7 @@ const uploadToFirebase = (file) => {
 
 const storyController = {
   // --- STAGE 1: THE CALL-OUT (Create Story) ---
+
   async createStory(req, res) {
     try {
       const { title, wager, sideAContent, opponentHandle } = req.body;
@@ -149,14 +150,16 @@ const storyController = {
     }
   },
 
+
   async getAllCompleteStories(req, res) {
-    try {
-      const stories = await StoryService.getAllCompleteStories();
-      return res.status(200).json(stories);
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
-  }
+    // 🛡️ If the frontend sends /completed?userId=123, we use it.
+    // 🛡️ If they just send /completed, userId is undefined (Global Feed).
+    const { userId } = req.query;
+
+    const stories = await StoryService.getAllCompleteStories(userId);
+    return res.json(stories);
+  },
+
 };
 
 module.exports = storyController;

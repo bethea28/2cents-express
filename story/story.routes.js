@@ -53,6 +53,12 @@ router.get(
   authenticateToken,
   storyController.getAllPendingStories
 );
+
+router.get(
+  "/completed", // 🛡️ No :userId here
+  authenticateToken,
+  storyController.getAllCompleteStories
+);
 router.get(
   "/getStoryById/:id",
   authenticateToken,

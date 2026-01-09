@@ -99,21 +99,26 @@ class StoryService {
   async getAllPendingStories(userId) {
     return await Story.findAll({
       where: {
-        [Op.or]: [
+        [Op.and]: [
+          // 1. Must involve the user
           {
-            // Cases where user is the OPPONENT and needs to accept/rebut
-            sideBAuthorId: userId,
-            status: { [Op.in]: ["pending-acceptance", "pending-rebuttal"] }
+            [Op.or]: [
+              { sideAAuthorId: userId },
+              { sideBAuthorId: userId }
+            ]
           },
+          // 2. Must be in a "Pre-Arena" state
           {
-            // Cases where user is the CHALLENGER (Side A) 
-            // Add this if you want Side A to see pending actions too
-            sideAAuthorId: userId,
-            status: "pending-acceptance"
+            status: {
+              [Op.in]: ["pending-acceptance", "pending-rebuttal"]
+            }
           }
         ]
       },
-      include: [{ model: User, as: 'SideA', attributes: ['username', 'firstName'] }],
+      include: [
+        { model: User, as: 'SideA', attributes: ['username', 'firstName'] },
+        { model: User, as: 'SideB', attributes: ['username', 'firstName'] } // 🛡️ Added SideB so SideA knows who they're fighting
+      ],
       order: [['createdAt', 'DESC']]
     });
   }
@@ -133,15 +138,28 @@ class StoryService {
   }
 
   // --- FEED LOGIC: COMPLETED BEEFS ---
-  async getAllCompleteStories() {
+  async getAllCompleteStories(userId = null) {
+    // 🛡️ Start with our base status filter
+    const whereClause = {
+      status: {
+        [Op.in]: ['active-voting', 'settled'] // 🛡️ Statuses that belong in the "Arena" or "Archive"
+      }
+    };
+
+    // 🛡️ If a userId is provided, we filter for stories involving them
+    if (userId) {
+      whereClause[Op.or] = [
+        { sideAAuthorId: userId },
+        { sideBAuthorId: userId }
+      ];
+    }
+
     return await Story.findAll({
-      where: {
-        status: {
-          // 🛠 ENGINEER: Use the exact ENUM values from your model.
-          // 'complete' was a hallucination; 'settled' is the real value.
-          [Op.in]: ['active-voting', 'settled']
-        }
-      },
+      where: whereClause,
+      include: [
+        { model: User, as: 'SideA', attributes: ['username', 'profilePic'] },
+        { model: User, as: 'SideB', attributes: ['username', 'profilePic'] }
+      ],
       order: [['updatedAt', 'DESC']]
     });
   }
