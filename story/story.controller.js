@@ -1,7 +1,10 @@
 const bucket = require("../firebase.config");
 const StoryService = require("./story.service");
+const User = require("../user/user.model");
+const Story = require("./story.model");
+const { addHours } = require("date-fns"); // Required for the 24h deadline
 
-// Firebase Helper
+// --- Firebase Helper ---
 const uploadToFirebase = (file) => {
   return new Promise((resolve, reject) => {
     const fileName = `videos/${Date.now()}_${file.originalname}`;
@@ -17,50 +20,80 @@ const uploadToFirebase = (file) => {
 };
 
 const storyController = {
-  // --- SIDE A: INITIAL CALL-OUT ---
+  // --- STAGE 1: THE CALL-OUT (Create Story) ---
   async createStory(req, res) {
     try {
-      const sideAAuthorId = req.user.id;
-      const file = req.file;
-      if (!file) return res.status(400).json({ error: "Video required." });
+      const { title, wager, sideAContent, opponentHandle } = req.body;
+      const userId = req.user.id;
 
-      const publicUrl = await uploadToFirebase(file);
-      const storyData = { ...req.body, sideAVideoUrl: publicUrl };
 
-      const newStory = await StoryService.createStory(storyData, sideAAuthorId);
-      return res.status(201).json({ success: true, data: newStory });
+      // Ensure a video was actually uploaded
+      if (!req.file) {
+        return res.status(400).json({ error: "A video rant is required to start a beef." });
+      }
+
+      // Using local path for Multer (ensure 'uploads' is static in server.js)
+      console.log('☁️ Uploading to Firebase...');
+      const sideAVideoUrl = await uploadToFirebase(req.file);
+      console.log('🔗 Firebase URL generated:', sideAVideoUrl);
+      console.log('🛡️ Creating Story for User ID:', userId);
+
+      const challenger = await User.findByPk(userId);
+      if (!challenger) return res.status(404).json({ error: "Challenger not found." });
+
+      const cleanHandle = (opponentHandle || "").replace('@', '').trim();
+      const opponent = await User.findOne({ where: { username: cleanHandle } });
+
+      if (!opponent) {
+        return res.status(404).json({ error: `User "@${cleanHandle}" does not exist.` });
+      }
+
+      const acceptanceDeadline = addHours(new Date(), 24);
+      const finalTitle = title || `Beef over ${wager || 'nothing'}`;
+      const slug = `${finalTitle.toLowerCase().trim().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, "-")}-${Date.now()}`;
+
+      const newStory = await Story.create({
+        title: finalTitle,
+        slug,
+        wager,
+        sideAContent,
+        sideAVideoUrl,
+        sideAAuthorId: userId,
+        sideAUsername: challenger.username,
+        sideBAuthorId: opponent.id,
+        sideBUsername: opponent.username,
+        status: "pending-acceptance",
+        expiresAt: acceptanceDeadline,
+      });
+
+      return res.status(201).json(newStory);
+
     } catch (error) {
+      console.error("🔥 Create Story Error:", error);
       return res.status(500).json({ error: error.message });
     }
   },
 
-  // --- STAGE 2: THE HANDSHAKE (User B Accepts the Terms) ---
+  // --- STAGE 2: THE HANDSHAKE (User B Accepts) ---
   async acceptStory(req, res) {
     try {
-      const { id } = req.params; // The Story ID
-      const userId = req.user.id; // The logged-in User B
+      const { id } = req.params;
+      const userId = req.user.id;
 
-      // 1. Call the service to update status and RESET the 24h clock
       const updatedStory = await StoryService.acceptChallenge(id, userId);
 
-      // 2. Return the updated story so the frontend can update the UI
       return res.status(200).json({
         success: true,
-        message: "Challenge accepted! You have 24 hours to record your rebuttal.",
+        message: "Challenge accepted! 24h clock started.",
         data: updatedStory
       });
     } catch (error) {
-      console.error("Accept Story Error:", error);
-
-      // Handle specific unauthorized or not found cases
       const statusCode = error.message.includes("Unauthorized") ? 403 : 404;
-      return res.status(error.message ? statusCode : 500).json({
-        error: error.message || "An error occurred while accepting the challenge."
-      });
+      return res.status(error.message ? statusCode : 500).json({ error: error.message });
     }
   },
 
-  // --- SIDE B: THE REBUTTAL (Starts the 72h Clock) ---
+  // --- STAGE 3: THE REBUTTAL (User B Uploads) ---
   async submitRebuttal(req, res) {
     try {
       const { id } = req.params;
@@ -69,9 +102,9 @@ const storyController = {
 
       if (!file) return res.status(400).json({ error: "Rebuttal video required." });
 
+      // Uploading to Firebase for the final public "Arena" stage
       const publicUrl = await uploadToFirebase(file);
 
-      // We call activateArena to trigger the 72-hour voting logic
       const activeStory = await StoryService.activateArena(id, sideBAuthorId, {
         sideBVideoUrl: publicUrl,
         sideBAcknowledged: true
@@ -83,15 +116,15 @@ const storyController = {
     }
   },
 
-  // --- RE-ADDED: updateStory (Fixes the Route Crash) ---
+  // --- GETTERS & UPDATERS ---
   async updateStory(req, res) {
     try {
       const { id } = req.params;
-      // Use the generic service update for simple field changes
-      const updatedStory = await StoryService.updateStory(id, req.body);
+      const updateData = req.body;
+      const updatedStory = await StoryService.updateStory(id, updateData);
       return res.status(200).json(updatedStory);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return res.status(error.message === 'Story not found' ? 404 : 500).json({ error: error.message });
     }
   },
 
@@ -104,47 +137,18 @@ const storyController = {
       return res.status(500).json({ error: error.message });
     }
   },
+
   async getStoryById(req, res) {
     try {
       const { id } = req.params;
-
-      // 🛠 ENGINEER: Delegate to the service layer
       const story = await StoryService.getStoryById(id);
-
-      if (!story) {
-        return res.status(404).json({
-          success: false,
-          message: "Challenge not found"
-        });
-      }
-
+      if (!story) return res.status(404).json({ success: false, message: "Not found" });
       return res.status(200).json(story);
     } catch (error) {
-      console.error("Error in getStoryById Controller:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal Server Error"
-      });
+      return res.status(500).json({ error: error.message });
     }
   },
-  // storyController.js
-  async updateStory(req, res) {
-    try {
-      const { userId } = req.params;
-      const updateData = req.body;
 
-      // This calls the service we fixed above
-      console.log('first story id', req.params)
-      const updatedStory = await StoryService.updateStory(userId, updateData);
-
-      return res.status(200).json(updatedStory);
-    } catch (error) {
-      console.error("Update Story Error:", error);
-      return res.status(error.message === 'Story not found' ? 404 : 500).json({
-        message: error.message || "Internal Server Error"
-      });
-    }
-  },
   async getAllCompleteStories(req, res) {
     try {
       const stories = await StoryService.getAllCompleteStories();

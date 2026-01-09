@@ -99,8 +99,19 @@ class StoryService {
   async getAllPendingStories(userId) {
     return await Story.findAll({
       where: {
-        sideBAuthorId: userId,
-        status: ["pending-acceptance", "pending-rebuttal"] // Waiting for user action
+        [Op.or]: [
+          {
+            // Cases where user is the OPPONENT and needs to accept/rebut
+            sideBAuthorId: userId,
+            status: { [Op.in]: ["pending-acceptance", "pending-rebuttal"] }
+          },
+          {
+            // Cases where user is the CHALLENGER (Side A) 
+            // Add this if you want Side A to see pending actions too
+            sideAAuthorId: userId,
+            status: "pending-acceptance"
+          }
+        ]
       },
       include: [{ model: User, as: 'SideA', attributes: ['username', 'firstName'] }],
       order: [['createdAt', 'DESC']]

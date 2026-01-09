@@ -103,9 +103,28 @@ const Story = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    // 🛡️ Staff Engineer: Added for faster Feed loading (Denormalization)
+    sideAUsername: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    sideBUsername: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // Optional: If you want to show "John D." instead of just a handle
+    sideADisplayName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    sideBDisplayName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
+
   {}
 );
 
