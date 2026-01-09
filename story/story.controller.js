@@ -120,9 +120,10 @@ const storyController = {
   // --- GETTERS & UPDATERS ---
   async updateStory(req, res) {
     try {
-      const { id } = req.params;
+      const { userId } = req.params;
       const updateData = req.body;
-      const updatedStory = await StoryService.updateStory(id, updateData);
+      console.log('GANGUM STYLE', userId)
+      const updatedStory = await StoryService.updateStory(userId, updateData);
       return res.status(200).json(updatedStory);
     } catch (error) {
       return res.status(error.message === 'Story not found' ? 404 : 500).json({ error: error.message });
