@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const authService = {
+
   // Added profilePic here so it actually saves to the DB!
   async registerUser({ username, email, password, profilePic }) {
     try {

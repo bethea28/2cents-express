@@ -10,6 +10,7 @@ const authController = {
    */
 
   async register(req, res) {
+    console.log('registering all', req.body)
     try {
       // 🛡️ Safety Check: If Multer fails to parse the body
       if (!req.body || Object.keys(req.body).length === 0) {
@@ -19,11 +20,17 @@ const authController = {
       console.log("🚀 REGISTER ATTEMPT:", req.body.username);
 
       const userData = {
-        username: req.body.username,
+        username: req.body.displayName,
         email: req.body.email,
-        password: req.body.password,
-        profilePic: req.file ? `/uploads/${req.file.filename}` : undefined
+        password: req.body.uid,
+        profilePic: req.body.photoURL
       };
+      // const userData = {
+      //   username: req.body.username,
+      //   email: req.body.email,
+      //   password: req.body.password,
+      //   profilePic: req.file ? `/uploads/${req.file.filename}` : undefined
+      // };
 
       const newUser = await authService.registerUser(userData);
 
