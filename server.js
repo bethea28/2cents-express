@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const cors = require("cors"); // 🛡️ Staff Engineer: Added for mobile connection
 const app = express();
-const port = 3000;
+const port = 5001;
 
 // --- 1. BOOTSTRAP: Ensure upload folder exists ---
 const uploadDir = path.join(__dirname, "uploads/videos");
@@ -35,7 +35,7 @@ const authRoutes = require("./auth/auth.routes");
 const storyRoutes = require("./story/story.routes");
 const voteRoutes = require("./vote/vote.routes");
 const commentRoutes = require("./comment/comment.routes");
-const likeRoutes = require("./like/like.routes");
+const likeRoutes = require("./likes/like.routes");
 
 app.get("/", (req, res) => {
   res.send("Arena Server is Live! 🚀");

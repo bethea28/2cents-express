@@ -1,12 +1,47 @@
 // auth/auth.service.js
+"use strict";
+
 const { Sequelize } = require("sequelize");
 const User = require("../user/user.model");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
 const authService = {
 
-  // Added profilePic here so it actually saves to the DB!
+  /**
+   * 🛡️ STAGE 1: Google Identity Sync
+   * This is strictly for finding or creating a user based on Google data.
+   */
+  async syncGoogleUser({ uid, email, username, profilePic }) {
+    try {
+      const [user, created] = await User.findOrCreate({
+        where: { email: email.toLowerCase().trim() },
+        defaults: {
+          uid,
+          username: username.replace(/\s+/g, '').toLowerCase(),
+          email: email.toLowerCase().trim(),
+          profilePic,
+          // Generate a random password since they use Google, but hash it anyway
+          password: await bcrypt.hash(Math.random().toString(36), 10)
+        }
+      });
+
+      // If the user existed but we didn't have their UID yet, sync it
+      if (!created && !user.uid) {
+        user.uid = uid;
+        await user.save();
+      }
+
+      // 🛡️ RETURN THE INSTANCE: This allows the controller to call .update()
+      return { user, isNewUser: created };
+    } catch (error) {
+      console.error("❌ Service Error (syncGoogleUser):", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * 🛡️ STAGE 2: Manual Registration
+   */
   async registerUser({ username, email, password, profilePic }) {
     try {
       const existingUser = await User.findOne({
@@ -23,69 +58,38 @@ const authService = {
         username,
         email,
         password: hashedPassword,
-        profilePic, // Now saving the path from Multer
+        profilePic,
       });
 
-      return newUser;
+      return newUser; // Returns the live Sequelize instance
     } catch (error) {
-      console.error("Error in authService.registerUser:", error);
+      console.error("❌ Service Error (registerUser):", error);
       throw error;
     }
   },
 
+  /**
+   * 🛡️ STAGE 3: Credential Login
+   * Checks the password and returns the user instance.
+   */
   async loginUser(email, password) {
     try {
-      console.log("🔍 Service: Searching for fighter with email:", email);
-
-      // 1. Find the user by EMAIL ONLY
-      // We explicitly include 'password' because models usually exclude it by default
+      // Find the user and include the password for comparison
       const user = await User.findOne({
         where: { email: email.toLowerCase().trim() },
         attributes: ["id", "username", "email", "password", "profilePic"],
       });
 
-      // 2. If no user is found, don't crash—return a clear failure
-      if (!user) {
-        console.log("❌ Service: No fighter found with that email.");
-        return null;
-      }
+      if (!user) return null;
 
-      // 3. Compare the "Secret Key" (Password)
       const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) return null;
 
-      if (!isMatch) {
-        console.log("❌ Service: Secret Key (password) does not match.");
-        return null;
-      }
-
-      // 4. Generate the "Arena Pass" (Tokens)
-      // We use the ID because it's the primary key that never changes
-      const token = jwt.sign(
-        { id: user.id },
-        process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "1h" }
-      );
-
-      const refreshToken = jwt.sign(
-        { id: user.id },
-        process.env.REFRESH_TOKEN_SECRET
-      );
-
-      // 5. Clean the user object before sending it to the frontend
-      // We never send the hashed password back to the phone
-      const userResponse = user.toJSON();
-      delete userResponse.password;
-
-      console.log("✅ Service: Login successful for", userResponse.username);
-
-      return {
-        user: userResponse,
-        token,
-        refreshToken
-      };
-
+      // 🛡️ STAFF NOTE: We removed the token generation here. 
+      // The controller will handle the JWT signing.
+      return user;
     } catch (error) {
-      console.error("❌ Service: Fatal error during login:", error.message);
+      console.error("❌ Service Error (loginUser):", error.message);
       throw error;
     }
   },

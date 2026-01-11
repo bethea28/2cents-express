@@ -1,72 +1,55 @@
+"use strict";
+
 const jwt = require("jsonwebtoken");
 const User = require("../user/user.model");
 
+/**
+ * 🛡️ STAFF ENGINEER: THE GATEKEEPER
+ * This ensures only fighters with a valid "Arena Pass" (JWT) can enter.
+ */
 const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-
-  // 1. Extract the token and CLEAN it
-  let token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized: No token provided." });
-  }
-
-  // ⚡️ REMOVE QUOTES: This fixes the Postman copy-paste issue
-  token = token.replace(/"/g, '');
-
   try {
-    // 2. Use the SECRET from your .env (Make sure this matches your login service!)
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const authHeader = req.headers["authorization"];
 
-    const userId = decoded.id;
-    const user = await User.findByPk(userId);
+    // 1. Extract the token from "Bearer <token>"
+    let token = authHeader && authHeader.split(" ")[1];
 
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized: Invalid user." });
+    if (!token) {
+      console.log("🔒 Access Denied: No token found in headers.");
+      return res.status(401).json({ error: "Unauthorized: No token provided." });
     }
 
-    // 3. Attach user and move on
+    // ⚡️ CLEANING: Remove extra quotes that sometimes sneak in from mobile storage or Postman
+    token = token.replace(/"/g, '');
+
+    // 2. Verification Phase
+    // 🛡️ CRITICAL: Must match the secret used in auth.controller.js exactly!
+    const secret = process.env.ACCESS_TOKEN_SECRET || "your_fallback_secret";
+
+    const decoded = jwt.verify(token, secret);
+
+    // 3. Database Check: Ensure the user still exists in Postgres
+    const user = await User.findByPk(decoded.id);
+
+    if (!user) {
+      console.log(`❌ Token valid, but User ID ${decoded.id} no longer exists.`);
+      return res.status(401).json({ error: "Unauthorized: User not found." });
+    }
+
+    // 4. Success: Attach the live Sequelize instance to the request
+    // This allows routes like /logout to call user.update()
     req.user = user;
     next();
+
   } catch (err) {
-    console.error("JWT Verification Error:", err.message);
-    return res.status(403).json({ error: "Forbidden: Invalid token." });
+    console.error("⚠️ JWT Verification Failed:", err.message);
+
+    // If the token is expired, send a 403 so the frontend knows to try the /refresh route
+    return res.status(403).json({
+      error: "Forbidden: Token expired or invalid.",
+      details: err.message
+    });
   }
 };
 
-module.exports = authenticateToken;
-
-// // middleware/authMiddleware.js
-// const jwt = require("jsonwebtoken");
-// const User = require("../user/user.model"); // Adjust the path to your User model
-
-// const authenticateToken = async (req, res, next) => {
-//   const authHeader = req.headers["authorization"];
-//   // const token = authHeader; // use for postman
-//   const token = authHeader && authHeader.split(" ")[1]; // Extract Bearer token
-//   console.log("here is my authentoken middle", authHeader);
-//   if (!token) {
-//     return res.status(401).json({ error: "Unauthorized: No token provided." });
-//   }
-//   console.log("ENV SECRETS", process.env.ACCESS_TOKEN_SECRET);
-//   try {
-//     const decoded = jwt.verify(token, "octheheroaccess"); // use for postman only
-//     // const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     const userId = decoded.id; // Assuming your JWT payload has 'id' as the user ID
-
-//     console.log("USER IS NOW FINDING", userId);
-//     const user = await User.findByPk(userId);
-
-//     if (!user) {
-//       return res.status(401).json({ error: "Unauthorized: Invalid user." });
-//     }
-
-//     req.user = user; // Attach the user object to the request
-//     next(); // Proceed to the next middleware or route handler
-//   } catch (err) {
-//     console.error("JWT Verification Error:", err);
-//     return res.status(403).json({ error: "Forbidden: Invalid token." });
-//   }
-// };
-
-// module.exports = authenticateToken;
+module.exports = { authMiddleware: authenticateToken };

@@ -1,82 +1,88 @@
+"use strict";
+
 const express = require("express");
 const router = express.Router();
 const storyController = require("./story.controller");
-const authenticateToken = require("../middleware/authMiddleware");
+// 🛡️ STAFF FIX: Destructure to get the function, not the object
+// const { authMiddleware } = require("../middleware/authMiddleware");
 const multer = require('multer');
-const storage = multer.memoryStorage(); // IMPORTANT: Use memory, not disk
+const { authMiddleware } = require("../middleware/authMiddleware");
+// ✅ SUCCESS: This "destructures" the object to grab just the function.
+/**
+ * 🛠️ MULTER CONFIGURATION
+ * Using memory storage for buffer-based processing.
+ */
+const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // Limits uploads to 50MB
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   }
 });
-// router.post('/createStory', authenticateToken, upload.single('sideAVideo'), storyController.createStory);
+
+// --- 🥊 STORY CREATION & RESPONSES ---
+
 // 1. Create the Beef (Side A)
 router.post(
   '/createStory',
-  authenticateToken,
-  upload.single('video'), // Frontend sends 'video'
-  storyController.createStory
-);
-router.post(
-  '/storiesVote/:id',
-  authenticateToken,
-  upload.single('video'), // Frontend sends 'video'
+  authMiddleware,
+  upload.single('video'),
   storyController.createStory
 );
 
 // 2. Respond to the Beef (Side B)
 router.patch(
   '/rebuttal/:id',
-  authenticateToken,
-  upload.single('video'), // Frontend also sends 'video' here
+  authMiddleware,
+  upload.single('video'),
   storyController.submitRebuttal
 );
-// story.routes.js
 
-// STAGE 2: The Handshake
-// This route moves a story from 'pending-acceptance' to 'pending-rebuttal'
+// 3. Accept the Challenge
+// Moves story from 'pending-acceptance' to 'pending-rebuttal'
 router.patch(
   '/acceptChallenge/:id',
-  authenticateToken,
-  storyController.acceptStory // Hits your new controller method
+  authMiddleware,
+  storyController.acceptStory
 );
-// Add this for Rebuttals
-router.patch(
-  '/updateSideBVideo/:id',
-  authenticateToken,
-  upload.single('sideBVideo'), // <--- Tells Multer to catch the Rebuttal file
-  storyController.updateStory // Or whatever your update function is named
-);
+
+// --- 🗳️ VOTING ---
+
+// router.post(
+//   '/storiesVote/:id',
+//   authMiddleware,
+//   storyController.castVote // 🛡️ FIXED: Was incorrectly calling createStory before
+// );
+
+// --- 🔍 QUERIES (Fetching Stories) ---
+
+// Get specific pending stories for a user
 router.get(
   "/:userId/getAllPendingStories",
-  authenticateToken,
+  authMiddleware,
   storyController.getAllPendingStories
 );
 
-router.get(
-  "/completed", // 🛡️ No :userId here
-  authenticateToken,
-  storyController.getAllCompleteStories
-);
-router.get(
-  "/getStoryById/:id",
-  authenticateToken,
-  storyController.getStoryById
-);
-// GLOBAL FEED (Public)
+// Public Global Feed (Completed stories)
 router.get(
   "/getAllCompleteStories",
-  authenticateToken,
+  authMiddleware,
   storyController.getAllCompleteStories
 );
+
+// Get a single story by ID
+router.get(
+  "/getStoryById/:id",
+  authMiddleware,
+  storyController.getStoryById
+);
+
+// --- ⚙️ UPDATES ---
+
 router.patch(
   "/:userId",
-  authenticateToken,
+  authMiddleware,
   storyController.updateStory
 );
-// router.get("/getAllPendingStories", authenticateToken, storyController.getAllPendingStories);
-// router.post("/createStory", storyController.createStory);
-// router.post("/createStory", authenticateToken, storyController.createStory);
-// router.get("/getAllStories", authenticateToken, storyController.getAllStories);
+
 module.exports = router;

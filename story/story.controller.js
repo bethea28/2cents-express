@@ -4,18 +4,51 @@ const User = require("../user/user.model");
 const Story = require("./story.model");
 const { addHours } = require("date-fns"); // Required for the 24h deadline
 
-// --- Firebase Helper ---
+// 🛡️ NEW IMPORTS FOR FFMPEG
+const ffmpeg = require('fluent-ffmpeg');
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+
+// --- Improved Firebase Helper with Fast-Start 🛡️ ---
 const uploadToFirebase = (file) => {
-  return new Promise((resolve, reject) => {
-    const fileName = `videos/${Date.now()}_${file.originalname}`;
-    const fileUpload = bucket.file(fileName);
-    const blobStream = fileUpload.createWriteStream({ metadata: { contentType: file.mimetype } });
-    blobStream.on("error", (error) => reject(error));
-    blobStream.on("finish", () => {
+  return new Promise(async (resolve, reject) => {
+    const tempInputPath = path.join(os.tmpdir(), `raw_${Date.now()}_${file.originalname}`);
+    const tempOutputPath = path.join(os.tmpdir(), `opt_${Date.now()}_${file.originalname}`);
+
+    try {
+      // 1. Write Multer buffer to a temp file for FFmpeg to read
+      fs.writeFileSync(tempInputPath, file.buffer);
+
+      // 2. Run the Fast-Start Machine
+      await new Promise((res, rej) => {
+        ffmpeg(tempInputPath)
+          .outputOptions(['-movflags +faststart', '-codec copy'])
+          .on('end', res)
+          .on('error', rej)
+          .save(tempOutputPath);
+      });
+
+      // 3. Upload the optimized file to Firebase
+      const fileName = `videos/${Date.now()}_${file.originalname}`;
+      const fileUpload = bucket.file(fileName);
+
+      await bucket.upload(tempOutputPath, {
+        destination: fileName,
+        metadata: { contentType: file.mimetype }
+      });
+
       const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
       resolve(url);
-    });
-    blobStream.end(file.buffer);
+
+    } catch (error) {
+      console.error("FFmpeg Processing Error:", error);
+      reject(error);
+    } finally {
+      // 4. CLEANUP: Always empty the "Mudroom" 🗑️
+      if (fs.existsSync(tempInputPath)) fs.unlinkSync(tempInputPath);
+      if (fs.existsSync(tempOutputPath)) fs.unlinkSync(tempOutputPath);
+    }
   });
 };
 
@@ -23,11 +56,12 @@ const storyController = {
   // --- STAGE 1: THE CALL-OUT (Create Story) ---
 
   async createStory(req, res) {
+
     try {
       const { title, wager, sideAContent, opponentHandle } = req.body;
       const userId = req.user.id;
 
-
+      console.log('creating story', req.body)
       // Ensure a video was actually uploaded
       if (!req.file) {
         return res.status(400).json({ error: "A video rant is required to start a beef." });
@@ -133,6 +167,7 @@ const storyController = {
   async getAllPendingStories(req, res) {
     try {
       const { userId } = req.params;
+      console.log('all pending stories', userId)
       const stories = await StoryService.getAllPendingStories(userId);
       return res.status(200).json(stories);
     } catch (error) {

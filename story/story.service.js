@@ -2,6 +2,7 @@ const Story = require("./story.model");
 const User = require('../user/user.model');
 const { Op } = require("sequelize");
 const { addHours } = require('date-fns');
+const { processVideo } = require('../helperFunctions')
 
 class StoryService {
   // --- STAGE 1: THE CALL-OUT ---

@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const likeController = require("./like.controller"); // 🛠 Swapped to likeController
-const authenticateToken = require("../middleware/authMiddleware");
+// const authenticateToken = require("../middleware/authMiddleware");
+const { authMiddleware } = require("../middleware/authMiddleware");
 
 // 🛠 ENGINEER: Removed multer/upload because likes don't send files.
 // This keeps the request-response cycle much faster.
@@ -13,7 +14,7 @@ const authenticateToken = require("../middleware/authMiddleware");
  */
 router.post(
   '/like/:id', // Using :id to represent the commentId
-  authenticateToken,
+  authMiddleware,
   likeController.toggleLike
 );
 

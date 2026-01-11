@@ -1,5 +1,5 @@
 const bucket = require("./firebase.config");
-const { Story } = require("../models"); // Your Sequelize Story model
+const { Story } = require("./models"); // Your Sequelize Story model
 
 exports.createCallOut = async (req, res) => {
     try {
