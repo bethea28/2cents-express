@@ -1,0 +1,57 @@
+# Firebase Secrets
+serviceAccountKey.json
+# Node.js
+node_modules
+package-lock.json
+npm-debug.log*
+yarn-error.log*
+firebase-service-account.json
+# Environment Variables
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Debug and Log Files
+debug.log
+*.log
+
+# IDE Specific Files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Build Output
+build/
+dist/
+out/
+
+# Sequelize Specific
+migrations/*.js.map      # If you have source maps for migrations
+seeders/*.js.map         # If you have source maps for seeders
+migrations/_current.json # If using sequelize-auto-migrations
+
+# Optional - Depending on your setup
+public/build/ # If you build frontend assets into your public folder
+client/build/ # If your frontend is in a separate client folder and built there
+
+# OS Specific Files
+.DS_Store
+Thumbs.db
+
+# Other
+.history
+*.swp
+*.swo
+*.orig
+*.pyc
+__pycache__/
+firebase-service-account.json.json
+firebase-service-account.json.json
